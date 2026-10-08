@@ -35,6 +35,10 @@ export default function App() {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [selectedFrame, setSelectedFrame] = useState(0);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState("");
   // Keep this in sync with the range input's min/max if you change the allowed frame count.
   const [frameCount, setFrameCount] = useState(4);
 
@@ -53,6 +57,8 @@ export default function App() {
     setError("");
     setAnalysis(null);
     setFrames([]);
+    setChatMessages([]);
+    setChatError("");
     setFileName(file.name);
     const url = URL.createObjectURL(file);
     setVideoUrl(url);
@@ -159,6 +165,59 @@ export default function App() {
         : (err.message || "Something went wrong.");
       setError(message);
       setStatus("ready");
+    }
+  }
+
+  async function sendChatMessage(event) {
+    event.preventDefault();
+    const message = chatInput.trim();
+    if (!message || chatLoading) return;
+
+    setChatLoading(true);
+    setChatError("");
+    try {
+      const response = await fetch(`${API}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          history: chatMessages.slice(-12),
+          videoName: fileName,
+          analysis
+        })
+      });
+      const responseBody = await response.text();
+      let data = {};
+      if (responseBody) {
+        try {
+          data = JSON.parse(responseBody);
+        } catch {
+          throw new Error(
+            `The chat server returned an invalid response (${response.status}). Check that the API server is running and review its terminal output.`
+          );
+        }
+      }
+      if (!response.ok) {
+        const serverMessage = [data.error, data.message]
+          .find((value) => typeof value === "string" && value.trim());
+        throw new Error(serverMessage || `Chat request failed (HTTP ${response.status}).`);
+      }
+      if (typeof data.reply !== "string" || !data.reply.trim()) {
+        throw new Error("The chat server returned an empty reply. Please try again.");
+      }
+
+      setChatMessages((previous) => [
+        ...previous,
+        { role: "user", text: message },
+        { role: "model", text: data.reply }
+      ]);
+      setChatInput("");
+    } catch (err) {
+      setChatError(err?.message === "Failed to fetch"
+        ? "Could not reach the chat server. Make sure the API server is running."
+        : (err.message || "The coach could not answer. Please try again."));
+    } finally {
+      setChatLoading(false);
     }
   }
 
@@ -344,6 +403,57 @@ export default function App() {
               </div>
             )}
           </aside>
+        </section>
+
+        <section className="panel chat-panel" aria-labelledby="chat-title">
+          <div className="chat-heading">
+            <div>
+              <span className="eyebrow">ASK YOUR COACH</span>
+              <h2 id="chat-title">Climbing questions, answered</h2>
+              <p>{analysis
+                ? "Your coach can refer to your latest video report."
+                : "Ask about technique, training, or climbing movement."}</p>
+            </div>
+            <div className="chat-online"><span /> AI COACH</div>
+          </div>
+          <div className="chat-transcript" aria-live="polite" aria-busy={chatLoading}>
+            {chatMessages.length === 0 ? (
+              <div className="chat-message coach-message">
+                <span className="chat-avatar">C</span>
+                <p>Hey! I’m your climbing coach. What would you like help with?</p>
+              </div>
+            ) : chatMessages.map((item, index) => (
+              <div
+                className={`chat-message ${item.role === "user" ? "user-message" : "coach-message"}`}
+                key={`${index}-${item.role}`}
+              >
+                {item.role === "model" && <span className="chat-avatar">C</span>}
+                <p>{item.text}</p>
+              </div>
+            ))}
+            {chatLoading && (
+              <div className="chat-message coach-message">
+                <span className="chat-avatar">C</span>
+                <p className="chat-thinking">Thinking through that…</p>
+              </div>
+            )}
+          </div>
+          {chatError && <div className="chat-error" role="alert">{chatError}</div>}
+          <form className="chat-form" onSubmit={sendChatMessage}>
+            <textarea
+              aria-label="Ask the climbing coach a question"
+              placeholder="Ask about footwork, body position, training…"
+              rows="2"
+              maxLength="2000"
+              value={chatInput}
+              disabled={chatLoading}
+              onChange={(event) => setChatInput(event.target.value)}
+            />
+            <button className="primary" type="submit" disabled={chatLoading || !chatInput.trim()}>
+              {chatLoading ? "Sending…" : "Ask coach →"}
+            </button>
+          </form>
+          <small className="chat-note">Coaching guidance only — not a substitute for in-person coaching or medical advice.</small>
         </section>
 
         {/* The thumbnails let users check the captured frames and jump to their timestamps. */}
