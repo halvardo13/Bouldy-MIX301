@@ -32,7 +32,7 @@ type WorkoutLog = {
   result: string;
 };
 
-type ChatMessage = { role: "coach" | "user"; text: string; attachment?: string };
+type ChatMessage = { role: "coach" | "user"; text: string };
 type AnalysisReport = {
   headline: string;
   overallScore: number;
@@ -694,10 +694,12 @@ function Today({ name, grade, onChange }: { name: string; grade: string; onChang
 
 function Coach({
   grade,
+  profile,
   analysis,
   onAnalyze,
 }: {
   grade: string;
+  profile: UserProfile;
   analysis: AnalysisReport | null;
   onAnalyze: () => void;
 }) {
@@ -721,11 +723,21 @@ function Coach({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message,
-          history: messages.slice(-12).map((item) => ({
+          history: messages.filter((_, index) => index > 0).slice(-12).map((item) => ({
             role: item.role === "coach" ? "model" : "user",
             text: item.text,
           })),
           analysis,
+          profile: {
+            grade: profile.grade,
+            goals: profile.goals,
+            climbingStyle: profile.climbingStyle,
+            experienceLevel: profile.experienceLevel,
+            sessionsPerWeek: profile.sessionsPerWeek,
+            trainingDays: profile.trainingDays,
+            sessionLength: profile.sessionLength,
+            equipment: profile.equipment,
+          },
         }),
       });
       const responseBody = await response.text();
@@ -750,7 +762,11 @@ function Coach({
       ]);
       setInput("");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "The coach could not answer. Please try again.");
+      setError(requestError instanceof Error && requestError.message === "Failed to fetch"
+        ? "Could not reach the coach. Make sure the API server is running."
+        : requestError instanceof Error
+          ? requestError.message
+          : "The coach could not answer. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -761,7 +777,7 @@ function Coach({
       <PageHeader eyebrow="Personal guidance" title="AI Coach" description="Bouldering expertise, shaped around your goals and training." />
       <section className="chat-card">
         <div className="chat-header"><div className="coach-orb small"><Icon name="spark" size={18} /></div><div><strong>Bouldy Coach</strong><span><i /> Online · Knows your plan</span></div></div>
-        <div className="messages">
+        <div className="messages" aria-live="polite" aria-busy={loading}>
           {messages.map((message, index) => (
             <div key={index} className={`message ${message.role}`}>
               {message.role === "coach" && <div className="message-avatar"><Icon name="spark" size={15} /></div>}
@@ -791,7 +807,7 @@ function formatAnalysisTime(seconds: number) {
   return `${minutes}:${remainder}`;
 }
 
-function Analyze({ onAnalyzed }: { onAnalyzed: (report: AnalysisReport | null) => void }) {
+function Analyze({ active, onAnalyzed }: { active: boolean; onAnalyzed: (report: AnalysisReport | null) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -808,6 +824,10 @@ function Analyze({ onAnalyzed }: { onAnalyzed: (report: AnalysisReport | null) =
     if (videoUrl) URL.revokeObjectURL(videoUrl);
   }, [videoUrl]);
 
+  useEffect(() => {
+    if (!active) videoRef.current?.pause();
+  }, [active]);
+
   function selectVideo(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -816,6 +836,7 @@ function Analyze({ onAnalyzed }: { onAnalyzed: (report: AnalysisReport | null) =
       event.target.value = "";
       return;
     }
+    event.target.value = "";
     setError("");
     setReport(null);
     setFrames([]);
@@ -1603,8 +1624,12 @@ export default function App() {
       <Nav view={view} onChange={setView} />
       <main className="main-content">
         {view === "today" && <Today name={profile.name} grade={profile.grade} onChange={setView} />}
-        {view === "coach" && <Coach grade={profile.grade} analysis={latestAnalysis} onAnalyze={() => setView("analyze")} />}
-        {view === "analyze" && <Analyze onAnalyzed={setLatestAnalysis} />}
+        <div className={view === "coach" ? "" : "inactive-view"} aria-hidden={view !== "coach"}>
+          <Coach grade={profile.grade} profile={profile} analysis={latestAnalysis} onAnalyze={() => setView("analyze")} />
+        </div>
+        <div className={view === "analyze" ? "" : "inactive-view"} aria-hidden={view !== "analyze"}>
+          <Analyze active={view === "analyze"} onAnalyzed={setLatestAnalysis} />
+        </div>
         {view === "workout" && <Workouts grade={profile.grade} onLogged={(log) => { setLogs((current) => [log, ...current]); setView("history"); }} onWarmup={() => setView("warmup")} />}
         {view === "warmup" && <Warmup onBack={() => setView("workout")} />}
         {view === "history" && <History logs={logs} />}

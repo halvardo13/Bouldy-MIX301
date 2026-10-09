@@ -407,6 +407,7 @@ button { border: 0; }
   background: var(--background);
   font-family: "Space Grotesk", sans-serif;
 }
+.inactive-view { display: none; }
 .app-shell .heading, .app-shell button, .app-shell input, .app-shell textarea { font-family: "Space Grotesk", sans-serif; }
 .app-shell .heading { letter-spacing: -.035em; }
 .app-shell .page-title, .app-shell .workout-complete .heading { color: var(--forest); }

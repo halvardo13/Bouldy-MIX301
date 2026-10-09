@@ -1,16 +1,17 @@
-# ClimbCoach AI — working prototype
+# Bouldy — AI climbing coach
 
-A small React + Express prototype for an AI climbing coach.
+A mobile-first React + Express prototype for an AI bouldering coach.
 
 ## What it does
 
-1. User selects a climbing video.
-2. The browser loads the video locally — it is not uploaded to your server as a video file.
-3. The browser samples 4 representative frames.
-4. Those frames are sent to the Express backend.
-5. The backend calls the Google AI Studio Gemini API with the frames as image inputs.
-6. The model returns structured coaching JSON.
-7. The UI shows scores, the biggest opportunity, key moments, drills, and sampled frames.
+The app includes onboarding and a personalized dashboard, workout and warm-up guides, workout history, and an AI coach chat. The chat can use climbing preferences from the profile and the latest video-analysis report for context. Injury notes, body measurements, account details, and the original video are not sent with chat requests.
+
+For video analysis:
+1. The browser loads the selected climbing video locally.
+2. The browser samples 4–8 representative frames; the original video is not uploaded.
+3. The sampled frames are sent to the Express backend.
+4. The backend calls Google AI Studio Gemini with the frames as image inputs.
+5. The report shows scores, the biggest opportunity, key moments, drills, and sampled frames.
 
 This is intentionally an MVP. It does **not** yet perform continuous pose tracking, hold detection, route reconstruction, or biomechanics measurement.
 
@@ -23,12 +24,11 @@ This is intentionally an MVP. It does **not** yet perform continuous pose tracki
 
 ```bash
 npm install
-cp .env.example .env
-# Add your Google AI Studio API key to .env
+# Add GEMINI_API_KEY and GEMINI_MODEL=gemini-3.8-flash to .env
 npm run dev
 ```
 
-Replace `GEMINI_API_KEY` in `.env` with a key from Google AI Studio before running analysis. The default model is `gemini-2.5-flash-lite`, Google's faster, lighter multimodal option; set `GEMINI_MODEL` to another Gemini model available to your project if needed. Gemini 2.0 Flash and Flash-Lite model IDs were shut down on June 1, 2026; use a currently supported model ID instead. Gemini 2.5 Flash and Flash-Lite remain listed as supported models. Check Google's [model list](https://ai.google.dev/gemini-api/docs/models) and [deprecation schedule](https://ai.google.dev/gemini-api/docs/deprecations) for current availability.
+The server defaults to `gemini-3.8-flash`. If you select a different `GEMINI_MODEL`, make sure it is available to your Google AI Studio project and supports image input. Check Google's [model list](https://ai.google.dev/gemini-api/docs/models) for current availability.
 
 You should see both the Vite client and API server start. Then open:
 
@@ -80,7 +80,7 @@ For example:
 - `empty_model_output` → the request reached Google AI Studio but did not produce usable text.
 - `provider_network_error` → the server could not complete its connection to Google AI Studio; check internet access, VPN, and firewall settings.
 - `provider_overloaded` → Google AI Studio is temporarily busy or rate-limiting requests; the server retries HTTP 503 responses up to three times with exponential backoff before returning the error. If it persists, retry later. A 503 is not evidence that a model ID has been retired.
-- `model_not_found` or a model-access error → check the model ID and whether it is available to your project. Retired Gemini 2.0 model IDs cannot be restored by retrying; select a supported model such as `gemini-2.5-flash-lite`.
+- `model_not_found` or a model-access error → check the model ID and whether it is available to your project. For video analysis, choose a currently supported model that accepts image input.
 - `provider_timeout` → Google AI Studio did not respond within 2 minutes; try again later. Analysis sends four resized frames to limit request size.
 
 The browser shows the API's error and HTTP status. For an HTTP 500 with no error details, check the API server terminal and confirm `GEMINI_API_KEY` is set in `.env`, then restart `npm run dev`. The repository does not include a configured `.env`; create it from `.env.example` and add your own key.
