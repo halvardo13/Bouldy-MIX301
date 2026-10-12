@@ -38,18 +38,9 @@ The API runs at:
 
 http://localhost:8787
 
-## Deploy free on Render
+## Localhost only
 
-The root `render.yaml` Blueprint creates a free API web service and a free static frontend. Both deploy from the same Git repository.
-
-1. Push this project to GitHub, then in Render choose **New → Blueprint** and connect the repository.
-2. When prompted, enter `GEMINI_API_KEY` for the `bouldy-api` service. The key stays server-side; do not add it to the frontend.
-3. Deploy the Blueprint. It connects the frontend to the API and automatically rebuilds both services on pushes to the connected branch.
-4. Open the `bouldy-frontend` URL shown in Render.
-
-The API uses `GEMINI_MODEL=gemini-3.8-flash` by default in the Blueprint. Change it in the Render API service's environment settings if needed. Free API services may sleep while idle, so the first chat or analysis request after a quiet period can take longer.
-
-To deploy manually instead, create a Render **Web Service** with build command `npm ci` and start command `npm start`, then create a **Static Site** with build command `npm ci && npm run build`, publish directory `dist`, and `VITE_API_URL` set to the API service's Render hostname. Set `GEMINI_API_KEY` only on the API service.
+This prototype is configured to run locally. Start both the Vite frontend and API server with `npm run dev`, then open `http://localhost:5173`. The API listens only on `127.0.0.1:8787`, and Vite proxies local `/api` requests to it. No deployment or hosting configuration is required.
 
 ## Important
 

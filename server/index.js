@@ -409,7 +409,7 @@ Scores must be numbers from 1 to 10. Moment timestamps must be non-negative.
   }
 });
 
-const server = app.listen(port, () => {
+const server = app.listen(port, "127.0.0.1", () => {
   console.log(`ClimbCoach API running at http://localhost:${port}`);
 });
 
