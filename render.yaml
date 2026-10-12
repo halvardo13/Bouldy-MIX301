@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: bouldy-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+
+  - type: web
+    name: bouldy-frontend
+    runtime: static
+    plan: free
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: bouldy-api
+          property: host
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
