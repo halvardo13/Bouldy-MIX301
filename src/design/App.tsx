@@ -202,9 +202,11 @@ const STARTER_HISTORY: WorkoutLog[] = [
   { id: 3, title: "Movement mileage", date: "Wednesday, 12 June", duration: "44 min", grade: "6A+", result: "9 sends" },
 ];
 
-const API = (import.meta.env.VITE_API_URL || "")
-  .replace(/^(?!https?:\/\/)/i, "https://")
-  .replace(/\/+$/, "");
+const API = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL
+    .replace(/^(?!https?:\/\/)/i, "https://")
+    .replace(/\/+$/, "")
+  : "";
 
 function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
