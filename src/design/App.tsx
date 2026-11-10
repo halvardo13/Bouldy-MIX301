@@ -243,6 +243,13 @@ function Button({ children, className = "", variant = "primary", ...props }: Rea
 }
 
 function SlideVisual({ id }: { id: string }) {
+  if (id === "welcome") {
+    return <img className="welcome-illustration" src="/assets/boulder-wall-illustration.svg" alt="Bouldering wall with a marked lime route" />;
+  }
+  if (id === "warmup") {
+    return <img className="warmup-illustration" src="/assets/climber-illustration-recolored.png" alt="Illustration of a climber reaching across a bouldering wall" />;
+  }
+
   switch (id) {
     case "welcome":
       return (
