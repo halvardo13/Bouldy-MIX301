@@ -4,6 +4,7 @@ type AppView = "today" | "coach" | "workout" | "warmup" | "analyze" | "history" 
 type WarmupArea = "Full body" | "Neck" | "Shoulders" | "Arms" | "Wrists" | "Hips" | "Legs" | "Ankles";
 type IconName =
   | "arrow"
+  | "bookmark"
   | "calendar"
   | "check"
   | "chevron"
@@ -33,6 +34,7 @@ type WorkoutLog = {
 };
 
 type ChatMessage = { role: "coach" | "user"; text: string };
+type SavedChatMessage = ChatMessage & { id: string };
 type AnalysisReport = {
   headline: string;
   overallScore: number;
@@ -202,10 +204,107 @@ const API = import.meta.env.VITE_API_URL
     .replace(/\/+$/, "")
   : "";
 
+function isSavedChatMessage(value: unknown): value is SavedChatMessage {
+  if (!value || typeof value !== "object") return false;
+  const message = value as Record<string, unknown>;
+  return typeof message.id === "string"
+    && (message.role === "coach" || message.role === "user")
+    && typeof message.text === "string";
+}
+
+function loadSavedChatMessages(): { messages: SavedChatMessage[]; error: string } {
+  try {
+    const raw = localStorage.getItem("bouldy-saved-coach-messages");
+    if (!raw) return { messages: [], error: "" };
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.every(isSavedChatMessage)) {
+      return { messages: [], error: "Saved messages could not be read. Saving or removing a message will replace the unreadable saved list." };
+    }
+    return { messages: parsed as SavedChatMessage[], error: "" };
+  } catch {
+    return { messages: [], error: "Saved messages could not be read. Saving or removing a message will replace the unreadable saved list." };
+  }
+}
+
+function renderInlineChatText(text: string): React.ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*|_[^_]+_)/g).map((part, index) => {
+    if ((part.startsWith("**") && part.endsWith("**")) || (part.startsWith("__") && part.endsWith("__"))) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
+    }
+    if ((part.startsWith("*") && part.endsWith("*")) || (part.startsWith("_") && part.endsWith("_"))) {
+      return <em key={index}>{part.slice(1, -1)}</em>;
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return <code key={index}>{part.slice(1, -1)}</code>;
+    }
+    return part;
+  });
+}
+
+function FormattedCoachMessage({ text }: { text: string }) {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const blocks: React.ReactNode[] = [];
+
+  for (let index = 0; index < lines.length;) {
+    if (!lines[index].trim()) {
+      index++;
+      continue;
+    }
+
+    if (/^\s*```/.test(lines[index])) {
+      const codeLines: string[] = [];
+      index++;
+      while (index < lines.length && !/^\s*```/.test(lines[index])) codeLines.push(lines[index++]);
+      if (index < lines.length) index++;
+      blocks.push(<pre key={blocks.length}><code>{codeLines.join("\n")}</code></pre>);
+      continue;
+    }
+
+    const heading = lines[index].match(/^\s{0,3}#{1,3}\s+(.+)$/);
+    if (heading) {
+      blocks.push(<h4 key={blocks.length}>{renderInlineChatText(heading[1])}</h4>);
+      index++;
+      continue;
+    }
+
+    const listItem = lines[index].match(/^\s*(?:[-*+]|\d+[.)])\s+(.+)$/);
+    if (listItem) {
+      const ordered = /^\s*\d+[.)]/.test(lines[index]);
+      const items: React.ReactNode[] = [];
+      while (index < lines.length) {
+        const item = lines[index].match(/^\s*(?:[-*+]|\d+[.)])\s+(.+)$/);
+        if (!item || /^\s*\d+[.)]/.test(lines[index]) !== ordered) break;
+        items.push(<li key={items.length}>{renderInlineChatText(item[1])}</li>);
+        index++;
+      }
+      const List = ordered ? "ol" : "ul";
+      blocks.push(<List key={blocks.length}>{items}</List>);
+      continue;
+    }
+
+    const paragraph: string[] = [];
+    while (
+      index < lines.length
+      && lines[index].trim()
+      && !/^\s*```/.test(lines[index])
+      && !/^\s{0,3}#{1,3}\s+/.test(lines[index])
+      && !/^\s*(?:[-*+]|\d+[.)])\s+/.test(lines[index])
+    ) {
+      paragraph.push(lines[index++]);
+    }
+    blocks.push(<p key={blocks.length}>{paragraph.map((line, lineIndex) => (
+      <React.Fragment key={lineIndex}>{lineIndex > 0 && <br />}{renderInlineChatText(line)}</React.Fragment>
+    ))}</p>);
+  }
+
+  return <div className="formatted-coach-message">{blocks}</div>;
+}
+
 function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
   const paths: Record<IconName, React.ReactNode> = {
     arrow: <><path d="M5 12h14" /><path d="m14 7 5 5-5 5" /></>,
+    bookmark: <><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4Z" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></>,
     check: <path d="m5 12 4 4L19 6" />,
     chevron: <path d="m9 18 6-6-6-6" />,
@@ -887,7 +986,8 @@ function PrivacySettings({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   function downloadData() {
-    const payload = JSON.stringify({ profile, workoutHistory: logs, aiSharing, shareInjuries }, null, 2);
+    const savedCoachMessages = JSON.parse(localStorage.getItem("bouldy-saved-coach-messages") || "[]");
+    const payload = JSON.stringify({ profile, workoutHistory: logs, savedCoachMessages, aiSharing, shareInjuries }, null, 2);
     const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -965,7 +1065,7 @@ function DataPolicy({ onBack }: { onBack: () => void }) {
           <Heading level={2}>What stays on this device</Heading>
           <ul>
             <li>Your profile and privacy choices are stored in this browser.</li>
-            <li>Coach messages remain in the current page session and are not saved after reload.</li>
+            <li>Chat messages remain in the current page session; messages you save are stored in this browser.</li>
             <li>Workout history in this prototype is held in the current page session.</li>
           </ul>
         </section>
@@ -992,6 +1092,8 @@ function Coach({
   analysis,
   onAnalyze,
   onOpenPrivacy,
+  onOpenDataPolicy,
+  onSharingChange,
   aiSharing,
   shareInjuries,
 }: {
@@ -1000,6 +1102,8 @@ function Coach({
   analysis: AnalysisReport | null;
   onAnalyze: () => void;
   onOpenPrivacy: () => void;
+  onOpenDataPolicy: () => void;
+  onSharingChange: (enabled: boolean) => void;
   aiSharing: boolean;
   shareInjuries: boolean;
 }) {
@@ -1010,7 +1114,39 @@ function Coach({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showSaved, setShowSaved] = useState(false);
+  const [savedState, setSavedState] = useState(loadSavedChatMessages);
+  const [savedMessagesError, setSavedMessagesError] = useState(savedState.error);
+  const savedMessagesChanged = useRef(false);
   const suggestions = ["Build my next workout", "Help with a project", "Review my training week"];
+  const savedMessages = savedState.messages;
+
+  useEffect(() => {
+    if (!savedMessagesChanged.current) return;
+    try {
+      localStorage.setItem("bouldy-saved-coach-messages", JSON.stringify(savedMessages));
+      savedMessagesChanged.current = false;
+      setSavedMessagesError("");
+    } catch {
+      setSavedMessagesError("Could not save your messages on this device. Check browser storage and try again.");
+    }
+  }, [savedMessages]);
+
+  function isMessageSaved(message: ChatMessage) {
+    return savedMessages.some((saved) => saved.role === message.role && saved.text === message.text);
+  }
+
+  function toggleSavedMessage(message: ChatMessage) {
+    const alreadySaved = isMessageSaved(message);
+    savedMessagesChanged.current = true;
+    setSavedState((current) => ({
+      ...current,
+      error: "",
+      messages: alreadySaved
+        ? current.messages.filter((saved) => !(saved.role === message.role && saved.text === message.text))
+        : [...current.messages, { ...message, id: `${Date.now()}-${Math.random()}` }],
+    }));
+  }
 
   async function submit(text = input) {
     const message = text.trim();
@@ -1082,18 +1218,48 @@ function Coach({
     <div className="coach-page">
       <PageHeader eyebrow="Personal guidance" title="AI Coach" description="Bouldering expertise, shaped around your goals and training." />
       <section className="chat-card">
-        <div className="chat-header"><div className="coach-orb small"><Icon name="spark" size={18} /></div><div><strong>Bouldy Coach</strong><span><i /> Online · Knows your plan</span></div></div>
-        {!aiSharing && <p className="chat-sharing-disabled" role="status">AI coach data sharing is turned off. Turn it on in Privacy settings to send a message.</p>}
+        <div className="chat-header"><div className="coach-orb small"><Icon name="spark" size={18} /></div><div><strong>Bouldy Coach</strong><span><i /> Online · Knows your plan</span></div><Button variant="secondary" className="saved-toggle" disabled={!aiSharing} onClick={() => setShowSaved((current) => !current)} aria-expanded={showSaved}><Icon name="bookmark" size={16} />Saved <span>{savedMessages.length}</span></Button></div>
+        {aiSharing && showSaved && (
+          <section className="saved-messages" aria-label="Saved chat messages">
+            <div className="saved-messages-heading"><div><strong>Saved messages</strong><span>Advice you want to revisit</span></div><Button variant="ghost" onClick={() => setShowSaved(false)} aria-label="Close saved messages"><Icon name="close" size={17} /></Button></div>
+            {savedMessagesError && <p className="saved-messages-error" role="alert">{savedMessagesError}</p>}
+            {savedMessages.length === 0
+              ? <p className="saved-empty">Save a useful chat message and it will appear here.</p>
+              : <div className="saved-message-list">{savedMessages.map((message) => <article className="saved-message" key={message.id}><div><span>{message.role === "coach" ? "Bouldy Coach" : "You"}</span>{message.role === "coach" ? <FormattedCoachMessage text={message.text} /> : <p>{message.text}</p>}</div><Button variant="ghost" onClick={() => toggleSavedMessage(message)} aria-label="Remove saved message"><Icon name="bookmark" size={15} /></Button></article>)}</div>}
+          </section>
+        )}
+        {!aiSharing ? (
+          <section className="coach-consent" aria-label="Before you talk to your AI coach">
+            <div className="coach-consent-icon"><Icon name="spark" size={24} /></div>
+            <Heading level={2}>Before you talk to your AI coach</Heading>
+            <ul>
+              <li><strong>Your messages go to Google's AI</strong><span>Your messages and selected climbing profile details are sent through Bouldy to Google AI Studio Gemini to generate replies.</span></li>
+              <li><strong>What may be sent</strong><span>Your chat messages, grade, goals, climbing preferences, training schedule, equipment, and your latest text-based analysis report if available. Injury notes are sent only when both sharing settings are on.</span></li>
+              <li><strong>What is not sent in chat</strong><span>Your name, email, password, weight, height, gender, original video, or video frames. Injury notes are not sent unless injury sharing is on.</span></li>
+              <li><strong>Your choice</strong><span>AI sharing stays off until you continue. You can turn it off at any time in Privacy settings. Information already sent cannot be withdrawn from this app.</span></li>
+              <li><strong>Please keep in mind</strong><span>Don't include names or contact details. Bouldy can make mistakes and is not a medical professional; check important training or health advice.</span></li>
+            </ul>
+            <div className="coach-consent-actions">
+              <Button onClick={() => onSharingChange(true)}>I understand, continue</Button>
+              <Button variant="secondary" onClick={onOpenDataPolicy}>Read the full details</Button>
+            </div>
+          </section>
+        ) : (
+        <>
         <div className="messages" aria-live="polite" aria-busy={loading}>
           {messages.map((message, index) => (
             <div key={index} className={`message ${message.role}`}>
               {message.role === "coach" && <div className="message-avatar"><Icon name="spark" size={15} /></div>}
-              <div className="message-bubble"><p>{message.text}</p></div>
+              <div className="message-bubble">
+                {message.role === "coach" ? <FormattedCoachMessage text={message.text} /> : <p>{message.text}</p>}
+                <Button variant="ghost" className={`message-save${isMessageSaved(message) ? " saved" : ""}`} onClick={() => toggleSavedMessage(message)} aria-pressed={isMessageSaved(message)}><Icon name="bookmark" size={15} />{isMessageSaved(message) ? "Saved" : "Save"}</Button>
+              </div>
             </div>
           ))}
           {loading && <div className="message coach"><div className="message-avatar"><Icon name="spark" size={15} /></div><div className="message-bubble"><p>Thinking through that…</p></div></div>}
         </div>
         {error && <p className="chat-request-error" role="alert">{error}</p>}
+        {savedMessagesError && !showSaved && <p className="saved-messages-error" role="alert">{savedMessagesError}</p>}
         {messages.length < 3 && <div className="suggestions">{suggestions.map((suggestion) => <Button key={suggestion} variant="secondary" disabled={loading} onClick={() => submit(suggestion)}>{suggestion}</Button>)}</div>}
         <form className="composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
           <textarea aria-label="Ask the climbing coach" maxLength={2000} value={input} disabled={loading || !aiSharing} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about training, technique, or a route..." />
@@ -1102,6 +1268,8 @@ function Coach({
         <p className="composer-note"><Icon name="image" size={14} /> For video movement analysis, use the Analyze tab.</p>
         {analysis && <p className="composer-context">The coach can reference your latest video analysis.</p>}
         <Button variant="secondary" className="analyze-link" onClick={onAnalyze}><Icon name="target" size={17} /> Analyze a climbing video</Button>
+        </>
+        )}
       </section>
       <div className="privacy-shortcut"><Button onClick={onOpenPrivacy}>Privacy</Button></div>
     </div>
@@ -1948,8 +2116,14 @@ export default function App() {
   const [logs, setLogs] = useState<WorkoutLog[]>([]);
   const [latestAnalysis, setLatestAnalysis] = useState<AnalysisReport | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
-  const [aiSharing, setAiSharing] = useState(() => localStorage.getItem("bouldy-ai-sharing") !== "false");
+  const [aiSharing, setAiSharing] = useState(() => localStorage.getItem("bouldy-ai-sharing") === "true");
   const [shareInjuries, setShareInjuries] = useState(() => localStorage.getItem("bouldy-share-injuries") === "true");
+  const [dataPolicyReturnView, setDataPolicyReturnView] = useState<AppView>("privacy");
+
+  function openDataPolicy(returnView: AppView) {
+    setDataPolicyReturnView(returnView);
+    setView("data-policy");
+  }
 
   function complete(p: UserProfile) {
     localStorage.setItem("bouldy-profile", JSON.stringify(p));
@@ -1973,6 +2147,7 @@ export default function App() {
     localStorage.removeItem("bouldy-profile");
     localStorage.removeItem("bouldy-ai-sharing");
     localStorage.removeItem("bouldy-share-injuries");
+    localStorage.removeItem("bouldy-saved-coach-messages");
     setProfile(null);
     setLogs([]);
     setLatestAnalysis(null);
@@ -2012,6 +2187,8 @@ export default function App() {
             shareInjuries={shareInjuries}
             onAnalyze={() => setView("analyze")}
             onOpenPrivacy={() => setView("privacy")}
+            onOpenDataPolicy={() => openDataPolicy("coach")}
+            onSharingChange={updateAiSharing}
           />
         </div>
         <div className={view === "analyze" ? "" : "inactive-view"} aria-hidden={view !== "analyze"}>
@@ -2030,11 +2207,11 @@ export default function App() {
             onToggleSharing={updateAiSharing}
             onToggleInjurySharing={updateInjurySharing}
             onBack={() => setView("coach")}
-            onOpenDataPolicy={() => setView("data-policy")}
+            onOpenDataPolicy={() => openDataPolicy("privacy")}
             onDeleteData={deleteProfileData}
           />
         )}
-        {view === "data-policy" && <DataPolicy onBack={() => setView("privacy")} />}
+        {view === "data-policy" && <DataPolicy onBack={() => setView(dataPolicyReturnView)} />}
       </main>
     </div>
   );
