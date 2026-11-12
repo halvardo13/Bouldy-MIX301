@@ -180,7 +180,10 @@ app.post("/api/chat", async (req, res) => {
       || JSON.stringify(profile).length > 4000
       || !optionalProfileTextIsValid(profile.grade, 24)
       || !optionalProfileTextIsValid(profile.climbingStyle, 100)
+      || !optionalProfileTextIsValid(profile.climbingLocation, 100)
       || !optionalProfileTextIsValid(profile.experienceLevel, 100)
+      || !optionalProfileTextIsValid(profile.fingerTrainingExperience, 100)
+      || !optionalProfileTextIsValid(profile.currentInjuries, 1000)
       || !optionalProfileTextIsValid(profile.sessionsPerWeek, 24)
       || !optionalProfileTextIsValid(profile.sessionLength, 24)
       || !profileListIsValid(profile.goals, 10, 120)

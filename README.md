@@ -4,7 +4,7 @@ A mobile-first React + Express prototype for an AI bouldering coach.
 
 ## What it does
 
-The app includes onboarding and a personalized dashboard, workout and warm-up guides, workout history, and an AI coach chat. The chat can use climbing preferences from the profile and the latest video-analysis report for context. Injury notes, body measurements, account details, and the original video are not sent with chat requests.
+The app includes onboarding and a personalized dashboard, workout and warm-up guides, workout history, an AI coach chat, and privacy settings. Reopen the profile from the top-right button to review or edit onboarding answers; the dashboard uses your goals, grade, preferred session length, and training schedule. The AI Coach's Privacy button opens data-sharing controls and the full data policy. Injury notes are sent with chat requests only when injury sharing is enabled; body measurements, account details, and the original video are not sent in chat requests.
 
 For video analysis:
 1. The browser loads the selected climbing video locally.
