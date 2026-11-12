@@ -39,8 +39,8 @@ button { border: 0; }
 .button:active { transform: translateY(0); }
 .button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid rgba(78, 125, 91, 0.28); outline-offset: 2px; }
 .button:disabled { cursor: not-allowed; opacity: .4; transform: none; }
-.button-primary { background: var(--accent); color: var(--forest); box-shadow: 0 3px 0 rgba(32, 43, 36, .14); }
-.button-primary:hover { background: #cbea61; box-shadow: 0 5px 16px rgba(32, 43, 36, .14); }
+.button-primary { background: linear-gradient(180deg, #d5f278 0%, var(--accent) 100%); color: var(--forest); box-shadow: 0 3px 0 rgba(32, 43, 36, .14); }
+.button-primary:hover { background: linear-gradient(180deg, #dff98a 0%, #cbea61 100%); box-shadow: 0 5px 16px rgba(32, 43, 36, .14); }
 .button-secondary { color: var(--foreground); background: var(--card); border-color: var(--border-dark); }
 .button-secondary:hover { background: var(--primary-pale); border-color: var(--primary); }
 .button-ghost { padding: 0; background: transparent; color: inherit; }
@@ -211,24 +211,6 @@ button { border: 0; }
 }
 .goal-chip:hover { border-color: var(--primary); color: var(--primary-dark); }
 
-.intro-replay-btn {
-  position: fixed;
-  top: 16px;
-  right: 20px;
-  z-index: 50;
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  font-size: 17px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(23,32,25,.08);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.intro-replay-btn:hover { transform: scale(1.1); box-shadow: 0 4px 14px rgba(23,32,25,.14); }
 .goal-chip.selected { color: var(--primary-dark); background: var(--primary-pale); border-color: var(--primary); }
 
 .profile-section { margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border); }

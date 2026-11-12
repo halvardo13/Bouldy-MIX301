@@ -238,8 +238,8 @@ function Heading({ children, level = 2, className = "" }: { children: React.Reac
   return <div role="heading" aria-level={level} className={`heading ${className}`}>{children}</div>;
 }
 
-function Button({ children, className = "", variant = "primary", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "icon" }) {
-  return <button className={`button button-${variant} ${className}`} {...props}>{children}</button>;
+function Button({ children, className = "", variant = "primary", type = "button", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "icon" }) {
+  return <button type={type} className={`button button-${variant} ${className}`} {...props}>{children}</button>;
 }
 
 function SlideVisual({ id }: { id: string }) {
@@ -1619,7 +1619,6 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(saved);
   const [view, setView] = useState<AppView>("today");
   const [logs, setLogs] = useState<WorkoutLog[]>(STARTER_HISTORY);
-  const [showIntro, setShowIntro] = useState(false);
   const [latestAnalysis, setLatestAnalysis] = useState<AnalysisReport | null>(null);
 
   function complete(p: UserProfile) {
@@ -1628,7 +1627,6 @@ export default function App() {
   }
 
   if (!profile) return <Onboarding onComplete={complete} />;
-  if (showIntro) return <Onboarding introOnly onComplete={() => setShowIntro(false)} />;
 
   return (
     <div className="app-shell">
@@ -1645,7 +1643,6 @@ export default function App() {
         {view === "warmup" && <Warmup onBack={() => setView("workout")} />}
         {view === "history" && <History logs={logs} />}
       </main>
-      <button className="intro-replay-btn" onClick={() => setShowIntro(true)} aria-label="View intro">🪨</button>
     </div>
   );
 }
