@@ -470,7 +470,7 @@ function SlideVisual({ id }: { id: string }) {
   }
 }
 
-function Onboarding({ onComplete, onCancel, initialProfile }: { onComplete: (profile: UserProfile) => void; onCancel?: () => void; initialProfile?: UserProfile }) {
+function Onboarding({ onComplete, onCancel, initialProfile, shareInjuries, onShareInjuriesChange }: { onComplete: (profile: UserProfile) => void; onCancel?: () => void; initialProfile?: UserProfile; shareInjuries: boolean; onShareInjuriesChange: (enabled: boolean) => void }) {
   const isEditing = Boolean(initialProfile);
   const [phase, setPhase] = useState<"intro" | "account" | "profile">(isEditing ? "profile" : "intro");
   const [slideIdx, setSlideIdx] = useState(0);
@@ -583,6 +583,7 @@ function Onboarding({ onComplete, onCancel, initialProfile }: { onComplete: (pro
 
   if (phase === "intro") return (
     <div className="intro-shell">
+      {slideIdx > 0 && <Button variant="ghost" className="intro-top-back" onClick={prevSlide} aria-label="Previous slide"><Icon name="arrow" /></Button>}
       <Button variant="ghost" className="intro-skip" onClick={() => setPhase("account")}>Skip</Button>
       <div className="intro-visual"><SlideVisual key={animKey} id={slide.id} /></div>
       <div className="intro-body">
@@ -591,11 +592,8 @@ function Onboarding({ onComplete, onCancel, initialProfile }: { onComplete: (pro
           <Heading level={1} className="intro-title">{slide.title}</Heading>
           <p className="intro-desc">{slide.body}</p>
         </div>
+        <div className="slide-dots intro-slide-dots">{INTRO_SLIDES.map((_, index) => <div key={index} className={`slide-dot${index === slideIdx ? " active" : ""}`} />)}</div>
         <div className="intro-footer">
-          <div className="intro-progress">
-            {slideIdx > 0 && <Button variant="ghost" className="intro-back-btn" onClick={prevSlide} aria-label="Previous slide"><Icon name="arrow" /></Button>}
-            <div className="slide-dots">{INTRO_SLIDES.map((_, index) => <div key={index} className={`slide-dot${index === slideIdx ? " active" : ""}`} />)}</div>
-          </div>
           <Button className="intro-cta-btn" onClick={nextSlide}>{isLastIntro ? "Get started" : "Continue"} <Icon name="arrow" /></Button>
         </div>
       </div>
@@ -636,11 +634,6 @@ function Onboarding({ onComplete, onCancel, initialProfile }: { onComplete: (pro
       </aside>
 
       <main className="profile-slide-main">
-        <div className="profile-mobile-progress">
-          <span>Step {profileStep + 1} of {steps.length}</span>
-          <div className="profile-mobile-dots">{steps.map((step, index) => <span key={step} className={`profile-mobile-dot${index <= profileStep ? " active" : ""}`} />)}</div>
-        </div>
-
         <div className="profile-slide-card slide-content-anim" key={profileStep}>
           {profileStep === 0 && <>
             <div className="profile-slide-heading"><Heading level={2}>Create your account</Heading></div>
@@ -651,16 +644,18 @@ function Onboarding({ onComplete, onCancel, initialProfile }: { onComplete: (pro
           </>}
 
           {profileStep === 1 && <>
-            <div className="profile-slide-heading"><div className="eyebrow">Terms & conditions</div><Heading level={2}>Before you start</Heading><p>To recieve our services, you must agree to the following:</p></div>
-            <div className="terms-card" tabIndex={0}>
+            <div className="profile-slide-heading"><div className="eyebrow">Terms & conditions</div><Heading level={2}>Before you start</Heading><p>To receive Bouldy’s services, please review and agree to the following:</p></div>
+            <div className="terms-card">
               <Heading level={3}>Bouldy training agreement</Heading>
-              <p>I agree to the storage and processing of my personal data, which will include special category data relateted to health. I understand that Bouldy will be unable to provide its services without this data.</p>
-              <p>Stop any exercise that causes sharp or increasing pain. If you have an injury, health condition, or concern, consult a qualified healthcare professional before training.</p>
-              <p>I understand that training comes with a risk of injury or death and i am responsible for my own actions.</p>
-              <p>Your messages and personal data are sent to and processed by servers in the United States to generate your training plan and feedback.</p>
-              <p>Climbing preferences, goals, and chat messages are sent to Google AI Studio Gemini when you use the AI coach. Injury notes are sent only if injury sharing is enabled in Privacy settings.</p>
+              <ul className="terms-list">
+                <li className="important"><strong>Your data is required</strong><span>Your profile may include health data, such as injuries or pain. Bouldy needs this information to personalize its services.</span></li>
+                <li className="important"><strong>Training has risks</strong><span>Climbing and training can cause injury or death. You are responsible for your own actions.</span></li>
+                <li><strong>Listen to your body</strong><span>Stop if you feel sharp or increasing pain. Speak to a healthcare professional if you have an injury or health concern.</span></li>
+                <li><strong>AI coach data</strong><span>Your chat messages, the last few messages of the chat, and some profile answers (climbing grade, goals, experience, training schedule and equipment) are sent to Google's Gemini AI. Google's free tier may use this to improve its products, and Figma's hosting may log messages. Your name, email, weight, height and gender stay on your device. Your injuries are only shared if you choose to below.</span></li>
+              </ul>
             </div>
             <label className={`terms-agree${acceptedTerms ? " selected" : ""}`} htmlFor="terms-check"><input id="terms-check" type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} /><span className="terms-checkmark"><Icon name="check" size={16} /></span><span>I have read and agree to the Terms & Conditions.</span></label>
+            <label className={`terms-agree${shareInjuries ? " selected" : ""}`} htmlFor="injury-sharing-terms"><input id="injury-sharing-terms" type="checkbox" checked={shareInjuries} onChange={(event) => onShareInjuriesChange(event.target.checked)} /><span className="terms-checkmark"><Icon name="check" size={16} /></span><span>Optional: Share my current injuries with the AI coach so it can adapt its advice. You can turn this off at any time in Privacy settings.</span></label>
           </>}
 
           {profileStep === 2 && <>
@@ -701,6 +696,10 @@ function Onboarding({ onComplete, onCancel, initialProfile }: { onComplete: (pro
               else setProfileStep((step) => step - 1);
             }}>{isEditing && profileStep === 2 ? "Cancel" : <><span className="back-arrow"><Icon name="arrow" /></span> Back</>}</Button> : <span />}
             <Button onClick={nextProfileStep} disabled={profileStep === 1 && !acceptedTerms}>{profileStep === steps.length - 1 ? "Build my plan" : "Continue"} <Icon name="arrow" /></Button>
+          </div>
+          <div className="profile-mobile-progress" aria-label={`Step ${profileStep + 1} of ${steps.length}`}>
+            <span>Step {profileStep + 1} of {steps.length}</span>
+            <div className="profile-mobile-dots" aria-hidden="true">{steps.map((step, index) => <span key={step} className={`profile-mobile-dot${index <= profileStep ? " active" : ""}`} />)}</div>
           </div>
         </div>
       </main>
@@ -2154,12 +2153,14 @@ export default function App() {
     setView("today");
   }
 
-  if (!profile) return <Onboarding onComplete={complete} />;
+  if (!profile) return <Onboarding onComplete={complete} shareInjuries={shareInjuries} onShareInjuriesChange={updateInjurySharing} />;
   if (editingProfile) return (
     <Onboarding
       initialProfile={profile}
       onComplete={complete}
       onCancel={() => setEditingProfile(false)}
+      shareInjuries={shareInjuries}
+      onShareInjuriesChange={updateInjurySharing}
     />
   );
 
