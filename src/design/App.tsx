@@ -472,11 +472,12 @@ function SlideVisual({ id }: { id: string }) {
 
 function Onboarding({ onComplete, onCancel, initialProfile, shareInjuries, onShareInjuriesChange }: { onComplete: (profile: UserProfile) => void; onCancel?: () => void; initialProfile?: UserProfile; shareInjuries: boolean; onShareInjuriesChange: (enabled: boolean) => void }) {
   const isEditing = Boolean(initialProfile);
-  const [phase, setPhase] = useState<"intro" | "account" | "profile">(isEditing ? "profile" : "intro");
+  const [phase, setPhase] = useState<"intro" | "account" | "profile" | "finalizing">(isEditing ? "profile" : "intro");
   const [slideIdx, setSlideIdx] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const [profileStep, setProfileStep] = useState(isEditing ? 2 : 0);
   const [formError, setFormError] = useState("");
+  const [pendingProfile, setPendingProfile] = useState<UserProfile | null>(null);
   const [name, setName] = useState(initialProfile?.name ?? "");
   const [email, setEmail] = useState(initialProfile?.email ?? "");
   const [password, setPassword] = useState("");
@@ -496,6 +497,12 @@ function Onboarding({ onComplete, onCancel, initialProfile, shareInjuries, onSha
   const [sessionsPerWeek, setSessionsPerWeek] = useState(initialProfile?.sessionsPerWeek ?? "");
   const [sessionLength, setSessionLength] = useState(initialProfile?.sessionLength ?? "");
   const [equipment, setEquipment] = useState<string[]>(initialProfile?.equipment ?? []);
+
+  useEffect(() => {
+    if (!pendingProfile) return;
+    const timer = window.setTimeout(() => onComplete(pendingProfile), 2400);
+    return () => window.clearTimeout(timer);
+  }, [pendingProfile, onComplete]);
 
   const slide = INTRO_SLIDES[slideIdx];
   const isLastIntro = slideIdx === INTRO_SLIDES.length - 1;
@@ -548,13 +555,19 @@ function Onboarding({ onComplete, onCancel, initialProfile, shareInjuries, onSha
     }
 
     const allGoals = customGoal.trim() ? [...goals, customGoal.trim()] : goals;
-    onComplete({
+    const completedProfile: UserProfile = {
       ...initialProfile,
       name: name.trim(), email: email.trim(), grade, note: initialProfile?.note ?? "", height,
       armSpan: initialProfile?.armSpan ?? "", gender, weight,
       goals: allGoals, climbingStyle, climbingLocation, experienceLevel, fingerTrainingExperience,
       currentInjuries, sessionsPerWeek, trainingDays, sessionLength, equipment,
-    });
+    };
+    if (isEditing) {
+      onComplete(completedProfile);
+      return;
+    }
+    setPendingProfile(completedProfile);
+    setPhase("finalizing");
   }
 
   function PickGroup({ options, value, onChange }: { options: string[]; value: string; onChange: (value: string) => void }) {
@@ -580,6 +593,18 @@ function Onboarding({ onComplete, onCancel, initialProfile, shareInjuries, onSha
       </div>
     );
   }
+
+  if (phase === "finalizing") return (
+    <div className="plan-loading-shell" role="status" aria-live="polite" aria-busy="true">
+      <div className="plan-loading-visual" aria-hidden="true">
+        <div className="plan-loading-orb"><Icon name="spark" size={28} /></div>
+        <div className="plan-loading-ring" />
+      </div>
+      <Heading level={1} className="plan-loading-title">AI Coach is finalizing your plan</Heading>
+      <p>Personalizing your sessions, recovery, and goals.</p>
+      <div className="plan-loading-dots" aria-hidden="true"><span /><span /><span /></div>
+    </div>
+  );
 
   if (phase === "intro") return (
     <div className="intro-shell">

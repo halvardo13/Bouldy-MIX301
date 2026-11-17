@@ -47,6 +47,32 @@ button { border: 0; }
 .button-icon { width: 44px; padding: 0; color: var(--foreground); background: var(--card); border: 1px solid var(--border); border-radius: 50%; }
 .eyebrow { color: var(--primary); font-size: 11px; font-weight: 600; letter-spacing: .15em; text-transform: uppercase; }
 
+.plan-loading-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  color: white;
+  text-align: center;
+  background: var(--forest);
+}
+.plan-loading-visual { width: 112px; height: 112px; position: relative; display: grid; place-items: center; margin-bottom: 34px; }
+.plan-loading-orb { width: 72px; height: 72px; display: grid; place-items: center; position: relative; z-index: 1; color: var(--forest); background: var(--accent); border-radius: 50%; box-shadow: 0 14px 38px rgba(0, 0, 0, .2); }
+.plan-loading-ring { position: absolute; inset: 0; border: 1px solid var(--border-dark); border-top-color: var(--accent); border-radius: 50%; animation: loading-spin 1.2s linear infinite; }
+.plan-loading-title { max-width: 560px; color: white; font-size: clamp(32px, 5vw, 52px); }
+.plan-loading-shell > p { margin: 16px 0 0; color: var(--moss-light); font-size: 15px; }
+.plan-loading-dots { display: flex; gap: 7px; margin-top: 30px; }
+.plan-loading-dots span { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; animation: loading-pulse 1.2s ease-in-out infinite; }
+.plan-loading-dots span:nth-child(2) { animation-delay: .15s; }
+.plan-loading-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+@keyframes loading-pulse {
+  0%, 70%, 100% { opacity: .3; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-5px); }
+}
+
 /* ====== Intro Slideshow ====== */
 .intro-shell {
   min-height: 100vh;
