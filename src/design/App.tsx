@@ -10,10 +10,12 @@ type IconName =
   | "chevron"
   | "clock"
   | "close"
+  | "footprints"
   | "history"
   | "home"
   | "image"
   | "message"
+  | "mountain"
   | "play"
   | "plus"
   | "send"
@@ -310,10 +312,12 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
     chevron: <path d="m9 18 6-6-6-6" />,
     clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     close: <><path d="m6 6 12 12M18 6 6 18" /></>,
+    footprints: <><path d="M8.5 13.5c2.3.8 4.7-.7 5.4-3.4.8-2.7-.4-5.5-2.7-6.2-2.3-.8-4.7.7-5.5 3.4-.7 2.7.5 5.5 2.8 6.2Z" /><path d="M15.4 20.6c1.8.6 3.8-.6 4.4-2.8.6-2.1-.4-4.3-2.2-4.9-1.8-.6-3.8.7-4.4 2.8-.6 2.2.4 4.4 2.2 4.9Z" /></>,
     history: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5M12 7v5l3 2" /></>,
     home: <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>,
     image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m21 15-5-5L5 20" /></>,
     message: <><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" /><path d="M8 9h8M8 13h5" /></>,
+    mountain: <><path d="M3 20 10 7l4 7 2-3 5 9H3Z" /><path d="m8 11 2 2 2-2" /></>,
     play: <path d="m8 5 11 7-11 7Z" />,
     plus: <><path d="M12 5v14M5 12h14" /></>,
     send: <><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></>,
@@ -472,11 +476,14 @@ function SlideVisual({ id }: { id: string }) {
 
 function Onboarding({ onComplete, onCancel, initialProfile, shareInjuries, onShareInjuriesChange }: { onComplete: (profile: UserProfile) => void; onCancel?: () => void; initialProfile?: UserProfile; shareInjuries: boolean; onShareInjuriesChange: (enabled: boolean) => void }) {
   const isEditing = Boolean(initialProfile);
-  const [phase, setPhase] = useState<"intro" | "account" | "profile" | "finalizing">(isEditing ? "profile" : "intro");
+  const [phase, setPhase] = useState<"intro" | "account" | "profile" | "login" | "finalizing">(isEditing ? "profile" : "intro");
   const [slideIdx, setSlideIdx] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const [profileStep, setProfileStep] = useState(isEditing ? 2 : 0);
   const [formError, setFormError] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [pendingProfile, setPendingProfile] = useState<UserProfile | null>(null);
   const [name, setName] = useState(initialProfile?.name ?? "");
   const [email, setEmail] = useState(initialProfile?.email ?? "");
@@ -570,6 +577,11 @@ function Onboarding({ onComplete, onCancel, initialProfile, shareInjuries, onSha
     setPhase("finalizing");
   }
 
+  function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoginError("Email sign-in is not connected in this prototype yet. Create an account to continue.");
+  }
+
   function PickGroup({ options, value, onChange }: { options: string[]; value: string; onChange: (value: string) => void }) {
     return (
       <div className="pick-group">
@@ -639,6 +651,36 @@ function Onboarding({ onComplete, onCancel, initialProfile, shareInjuries, onSha
     </div>
   );
 
+  if (phase === "login") return (
+    <div className="account-shell login-shell">
+      <div className="account-visual login-visual">
+        <div className="login-visual-content"><div className="brand brand-light"><span>Bouldy</span></div></div>
+      </div>
+      <main className="account-card login-card">
+        <Button variant="ghost" className="login-back" onClick={() => { setLoginError(""); setPhase("account"); }}>
+          <span className="back-arrow"><Icon name="arrow" size={18} /></span> Back
+        </Button>
+        <div className="login-form-wrap">
+          <Heading level={1} className="account-title login-title">Log in to Bouldy</Heading>
+          <p className="account-desc login-desc">Welcome back. Log in with your email and password.</p>
+          <form className="login-form" onSubmit={handleEmailLogin}>
+            <div className="field-group field-group-flat">
+              <label className="field-label" htmlFor="login-email">Email</label>
+              <input id="login-email" className="text-field" type="email" autoComplete="email" required value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} placeholder="alex@example.com" />
+            </div>
+            <div className="field-group">
+              <label className="field-label" htmlFor="login-password">Password</label>
+              <input id="login-password" className="text-field" type="password" autoComplete="current-password" required value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} placeholder="Enter your password" />
+            </div>
+            {loginError && <div className="profile-form-error" role="alert">{loginError}</div>}
+            <Button type="submit" className="wide-button login-submit">Log in <Icon name="arrow" /></Button>
+          </form>
+          <p className="login-create-prompt">New to Bouldy? <Button variant="ghost" onClick={() => { setLoginError(""); setProfileStep(0); setPhase("profile"); }}>Create an account</Button></p>
+        </div>
+      </main>
+    </div>
+  );
+
   return (
     <div className="profile-slideshow-shell">
       <aside className="profile-step-rail">
@@ -665,7 +707,7 @@ function Onboarding({ onComplete, onCancel, initialProfile, shareInjuries, onSha
             <div className="field-group"><label className="field-label" htmlFor="ob-name">Name</label><input id="ob-name" className="text-field" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Alex Morgan" /></div>
             <div className="field-group"><label className="field-label" htmlFor="ob-email">Email</label><input id="ob-email" className="text-field" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="alex@example.com" /></div>
             <div className="field-group"><label className="field-label" htmlFor="ob-password">Password</label><input id="ob-password" className="text-field" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" /><p className="field-hint">Use 8 or more characters.</p></div>
-            <p className="account-login-prompt">Already have an account? <span>Log in</span></p>
+            <p className="account-login-prompt">Already have an account? <Button variant="ghost" onClick={() => { setLoginError(""); setPhase("login"); }}>Log in</Button></p>
           </>}
 
           {profileStep === 1 && <>
@@ -731,7 +773,7 @@ function Onboarding({ onComplete, onCancel, initialProfile, shareInjuries, onSha
     </div>
   );
 }
-function Nav({ view, onChange }: { view: AppView; onChange: (view: AppView) => void }) {
+function Nav({ view, onChange, name }: { view: AppView; onChange: (view: AppView) => void; name: string }) {
   const items: { key: AppView; label: string; icon: IconName }[] = [
     { key: "today", label: "Today", icon: "home" },
     { key: "coach", label: "AI Coach", icon: "message" },
@@ -755,6 +797,11 @@ function Nav({ view, onChange }: { view: AppView; onChange: (view: AppView) => v
           <div className="coach-orb small"><Icon name="spark" size={18} /></div>
           <div><strong>Coach online</strong><span>Ready when you are</span></div>
         </div>
+        <Button variant="ghost" className="profile-button" onClick={() => onChange("profile")} aria-label="Open profile">
+          <span className="avatar">{name.trim().charAt(0).toUpperCase() || "C"}</span>
+          <span><strong>{name || "Climber"}</strong><small>Settings & privacy</small></span>
+          <Icon name="chevron" size={16} />
+        </Button>
       </aside>
       <nav className="mobile-nav" aria-label="Mobile navigation">
         {[
@@ -866,7 +913,7 @@ function getRecommendedSession(profile: UserProfile) {
     ["Better static movement", "Better dynamic movement", "Improve technique"].includes(goal)
   );
   return {
-    title: techniqueGoal ? "Technique & movement" : "Climbing foundations",
+    title: techniqueGoal ? "Technique & movement" : "Project session",
     description: techniqueGoal
       ? `A technique-focused session for ${goals.filter((goal) => ["Better static movement", "Better dynamic movement", "Improve technique"].includes(goal)).join(" and ").toLowerCase()}.`
       : goals.length
@@ -889,38 +936,53 @@ function sessionMinutes(sessionLength?: string) {
   return 55;
 }
 
-function Today({ profile, onChange }: { profile: UserProfile; onChange: (view: AppView) => void }) {
+function Today({ profile, logs, onChange }: { profile: UserProfile; logs: WorkoutLog[]; onChange: (view: AppView) => void }) {
   const todayDate = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const session = getRecommendedSession(profile);
-  const goalList = profile.goals?.length ? profile.goals.join(", ") : "No goal selected";
-  const trainingDays = profile.trainingDays ?? [];
-  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const weeklyTarget = profile.sessionsPerWeek || "Not set";
-  const duration = profile.sessionLength || "45–60 min";
-  const equipment = profile.equipment?.length ? profile.equipment.join(", ") : "No equipment selected";
-  const grade = profile.grade || "Not set";
+  const isGuest = !profile.name.trim();
+  const weekStart = new Date();
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  const thisWeekLogs = logs.filter((log) => new Date(log.id) >= weekStart && new Date(log.id) < weekEnd);
+  const completedDays = new Set(thisWeekLogs.map((log) => (new Date(log.id).getDay() + 6) % 7));
+  const weeklyTarget = Number.parseInt(profile.sessionsPerWeek || "", 10) || 0;
+  const sessionsRemaining = Math.max(weeklyTarget - thisWeekLogs.length, 0);
+  const duration = `${sessionMinutes(profile.sessionLength)} min`;
+  const guestMessages = [
+    "Every send starts with showing up.",
+    "Small sessions add up.",
+    "Climb well, rest well.",
+    "Good technique makes hard moves feel easier.",
+    "Today's goal: enjoy the movement.",
+  ];
+  const dayOfYear = Math.floor((Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()) - Date.UTC(new Date().getFullYear(), 0, 0)) / 86400000);
+  const insightMessage = isGuest
+    ? guestMessages[(dayOfYear - 1) % guestMessages.length]
+    : logs.length === 0
+      ? `Your first session is ready${profile.goals.length ? `, picked for your goal: ${profile.goals[0]}` : ""}`
+      : weeklyTarget > 0 && sessionsRemaining === 0
+        ? "Weekly target reached."
+        : weeklyTarget > 0
+          ? `${sessionsRemaining} more ${sessionsRemaining === 1 ? "session" : "sessions"} to hit your weekly target.`
+          : "Your next session is ready.";
   return (
     <>
       <PageHeader eyebrow={todayDate} title={`Good morning${profile.name ? `, ${profile.name}` : ""}.`} />
 
-      <div className="section-heading"><div><span className="eyebrow">Built from your setup</span><Heading>Today's session</Heading></div><span className="session-time"><Icon name="clock" size={17} /> {duration}</span></div>
+      <div className="today-insight"><p>{insightMessage}</p>{isGuest && <small>Create a profile to track your training.</small>}</div>
+
+      <div className="section-heading"><div><span className="eyebrow">Up next</span><Heading>Today's session</Heading></div><span className="session-time"><Icon name="clock" size={17} /> {duration}</span></div>
       <section className="today-grid">
         <article className="plan-card">
           <div className="plan-card-top">
-            <div className="plan-icon"><Icon name="target" /></div>
-            <span className="tag">Recommended</span>
+            <div className="plan-icon"><Icon name="footprints" /></div>
+            <span className="tag tag-ai">Recommended</span>
           </div>
           <Heading level={3}>{session.title}</Heading>
-          <p>{session.description}</p>
-          <div className="dashboard-context">
-            <span><strong>Goal:</strong> {goalList}</span>
-            <span><strong>Grade:</strong> {grade}</span>
-            <span><strong>Level:</strong> {profile.experienceLevel || "Not set"}</span>
-            <span><strong>Style:</strong> {profile.climbingStyle || "Not set"}</span>
-            <span><strong>Location:</strong> {profile.climbingLocation || "Not set"}</span>
-            <span><strong>Finger training:</strong> {profile.fingerTrainingExperience || "Not set"}</span>
-            <span><strong>Equipment:</strong> {equipment}</span>
-          </div>
+          <p className="recommended-reason">Why: {session.description}</p>
+          {isGuest && <small className="today-session-note">Create a profile to make this session personal.</small>}
           <ol className="workout-steps">
             {session.steps.map(([title, instructions, minutes], index) => (
               <li key={title}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{title}</strong><small>{instructions} · {minutes} min</small></div></li>
@@ -931,12 +993,11 @@ function Today({ profile, onChange }: { profile: UserProfile; onChange: (view: A
 
         <div className="side-stack">
           <article className="progress-card">
-            <div className="card-heading-row"><div><span className="eyebrow">Your training target</span><Heading level={3}>Weekly rhythm</Heading></div><strong>{weeklyTarget}</strong></div>
+            <div className="card-heading-row"><div><span className="eyebrow">This week</span><Heading level={3}>Climbing load</Heading></div><strong>{thisWeekLogs.length} / {weeklyTarget || "—"}</strong></div>
             <div className="week-bars">
-              {weekDays.map((day) => <div key={day}><span className={trainingDays.includes(day) ? "planned" : ""} /><small>{day}</small></div>)}
+              {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => <div key={`${day}-${index}`}><span className={completedDays.has(index) ? "filled" : ""} /><small>{day}</small></div>)}
             </div>
-            <p>{trainingDays.length ? `Your selected days: ${trainingDays.join(", ")}.` : "No preferred days selected yet."}</p>
-            <p className="dashboard-context-line"><strong>Preferred session:</strong> {duration}</p>
+            <p>{weeklyTarget === 0 ? "Set a weekly target in your profile." : sessionsRemaining === 0 ? "Weekly target reached." : `${sessionsRemaining} more ${sessionsRemaining === 1 ? "session" : "sessions"} to hit your weekly target.`}</p>
           </article>
           <Button variant="secondary" className="quick-card" onClick={() => onChange("warmup")}>
             <span className="quick-icon"><Icon name="warmup" /></span><span><strong>Need a quick warm-up?</strong><small>Guided routines from 5–15 min</small></span><Icon name="chevron" />
@@ -1120,6 +1181,7 @@ function Coach({
   onSharingChange,
   aiSharing,
   shareInjuries,
+  consentAcknowledged,
 }: {
   grade: string;
   profile: UserProfile;
@@ -1130,6 +1192,7 @@ function Coach({
   onSharingChange: (enabled: boolean) => void;
   aiSharing: boolean;
   shareInjuries: boolean;
+  consentAcknowledged: boolean;
 }) {
   const climbingGrade = grade || "your current level";
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -1240,10 +1303,12 @@ function Coach({
 
   return (
     <div className="coach-page">
-      <PageHeader eyebrow="Personal guidance" title="AI Coach" description="Bouldering expertise, shaped around your goals and training." />
-      <section className="chat-card">
-        <div className="chat-header"><div className="coach-orb small"><Icon name="spark" size={18} /></div><div><strong>Bouldy Coach</strong><span><i /> Online · Knows your plan</span></div><Button variant="secondary" className="saved-toggle" disabled={!aiSharing} onClick={() => setShowSaved((current) => !current)} aria-expanded={showSaved}><Icon name="bookmark" size={16} />Saved <span>{savedMessages.length}</span></Button></div>
-        {aiSharing && showSaved && (
+      <section className="chat-card coach-chat-card">
+        <div className="chat-header">
+          <div className="coach-identity"><div className="coach-mark"><Icon name="mountain" size={22} /></div><div><strong>Bouldy Coach</strong><span>Your AI climbing coach</span></div></div>
+          <Button variant="secondary" className="saved-toggle" disabled={!aiSharing || !consentAcknowledged} onClick={() => setShowSaved((current) => !current)} aria-expanded={showSaved}><Icon name="bookmark" size={16} />Saved <span>{savedMessages.length}</span></Button>
+        </div>
+        {aiSharing && consentAcknowledged && showSaved && (
           <section className="saved-messages" aria-label="Saved chat messages">
             <div className="saved-messages-heading"><div><strong>Saved messages</strong><span>Advice you want to revisit</span></div><Button variant="ghost" onClick={() => setShowSaved(false)} aria-label="Close saved messages"><Icon name="close" size={17} /></Button></div>
             {savedMessagesError && <p className="saved-messages-error" role="alert">{savedMessagesError}</p>}
@@ -1252,16 +1317,17 @@ function Coach({
               : <div className="saved-message-list">{savedMessages.map((message) => <article className="saved-message" key={message.id}><div><span>{message.role === "coach" ? "Bouldy Coach" : "You"}</span>{message.role === "coach" ? <FormattedCoachMessage text={message.text} /> : <p>{message.text}</p>}</div><Button variant="ghost" onClick={() => toggleSavedMessage(message)} aria-label="Remove saved message"><Icon name="bookmark" size={15} /></Button></article>)}</div>}
           </section>
         )}
-        {!aiSharing ? (
+        {!aiSharing || !consentAcknowledged ? (
           <section className="coach-consent" aria-label="Before you talk to your AI coach">
             <div className="coach-consent-icon"><Icon name="spark" size={24} /></div>
-            <Heading level={2}>Before you talk to your AI coach</Heading>
+            <Heading level={1}>Before you talk to your AI coach</Heading>
             <ul>
-              <li><strong>Your messages go to Google's AI</strong><span>Your messages and selected climbing profile details are sent through Bouldy to Google AI Studio Gemini to generate replies.</span></li>
-              <li><strong>What may be sent</strong><span>Your chat messages, grade, goals, climbing preferences, training schedule, equipment, and your latest text-based analysis report if available. Injury notes are sent only when both sharing settings are on.</span></li>
-              <li><strong>What is not sent in chat</strong><span>Your name, email, password, weight, height, gender, original video, or video frames. Injury notes are not sent unless injury sharing is on.</span></li>
-              <li><strong>Your choice</strong><span>AI sharing stays off until you continue. You can turn it off at any time in Privacy settings. Information already sent cannot be withdrawn from this app.</span></li>
-              <li><strong>Please keep in mind</strong><span>Don't include names or contact details. Bouldy can make mistakes and is not a medical professional; check important training or health advice.</span></li>
+              <li><strong>Your messages go to Google's AI</strong><span>Your messages and some profile answers are sent to Google's Gemini AI to write answers.</span></li>
+              <li><strong>What is sent</strong><span>Your chat messages, your climbing grade, goals, experience, training schedule and equipment, and your current injuries, only if you turned on injury sharing.</span></li>
+              <li><strong>What is not sent</strong><span>Your name, email, weight, height and gender. Your injuries, unless you turned on injury sharing.</span></li>
+              <li><strong>Free tier</strong><span>Google may use what you send to improve its products. Figma, which hosts this prototype, may log messages.</span></li>
+              <li><strong>Please</strong><span>Don't type names or contact details. You can tell the coach about pain or injuries so it can adapt your training, but it's not a doctor.</span></li>
+              <li><strong>Your control</strong><span>Your profile and saved messages stay on this device until you delete them in Settings &gt; Privacy.</span></li>
             </ul>
             <div className="coach-consent-actions">
               <Button onClick={() => onSharingChange(true)}>I understand, continue</Button>
@@ -1284,14 +1350,14 @@ function Coach({
         </div>
         {error && <p className="chat-request-error" role="alert">{error}</p>}
         {savedMessagesError && !showSaved && <p className="saved-messages-error" role="alert">{savedMessagesError}</p>}
-        {messages.length < 3 && <div className="suggestions">{suggestions.map((suggestion) => <Button key={suggestion} variant="secondary" disabled={loading} onClick={() => submit(suggestion)}>{suggestion}</Button>)}</div>}
+        {messages.length < 3 && <div className="suggestions"><div className="suggestion-scroll">{suggestions.map((suggestion) => <Button key={suggestion} variant="secondary" disabled={loading} onClick={() => submit(suggestion)}>{suggestion}</Button>)}</div></div>}
         <form className="composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-          <textarea aria-label="Ask the climbing coach" maxLength={2000} value={input} disabled={loading || !aiSharing} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about training, technique, or a route..." />
-          <Button variant="icon" className="send-button" type="submit" disabled={loading || !aiSharing || !input.trim()} aria-label="Send message"><Icon name="send" size={18} /></Button>
+          <div className="composer-input">
+            <textarea aria-label="Ask the climbing coach" maxLength={2000} value={input} disabled={loading || !aiSharing} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about training, technique, or a route..." />
+            <Button variant="icon" className="send-button" type="submit" disabled={loading || !aiSharing || !input.trim()} aria-label="Send message"><Icon name="send" size={18} /></Button>
+          </div>
         </form>
-        <p className="composer-note"><Icon name="image" size={14} /> For video movement analysis, use the Analyze tab.</p>
-        {analysis && <p className="composer-context">The coach can reference your latest video analysis.</p>}
-        <Button variant="secondary" className="analyze-link" onClick={onAnalyze}><Icon name="target" size={17} /> Analyze a climbing video</Button>
+        <p className="coach-disclaimer"><strong>Bouldy can make mistakes.</strong> Check important training, injury, and health advice before acting on it.</p>
         </>
         )}
       </section>
@@ -1964,7 +2030,7 @@ function EnduranceView({ onBack, onStart }: { onBack: () => void; onStart: (plan
   );
 }
 
-function Workouts({ profile, onLogged, onWarmup }: { profile: UserProfile; onLogged: (log: WorkoutLog) => void; onWarmup: () => void }) {
+function Workouts({ profile, onLogged }: { profile: UserProfile; onLogged: (log: WorkoutLog) => void }) {
   const [subView, setSubView] = useState<"strength" | "endurance" | null>(null);
   const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null);
   const grade = profile.grade || "your current level";
@@ -1972,8 +2038,8 @@ function Workouts({ profile, onLogged, onWarmup }: { profile: UserProfile; onLog
   const plannedMinutes = sessionMinutes(profile.sessionLength);
   const scale = plannedMinutes / 55;
   const recommendedPlan: WorkoutPlan = {
-    title: recommendedSession.title,
-    duration: profile.sessionLength || "45–60 min",
+    title: "Precision & movement",
+    duration: "55 min",
     steps: recommendedSession.steps.map(([title, instructions, minutes, restSeconds]) => {
       const workSeconds = Math.round(minutes * 60 * scale);
       return {
@@ -2007,9 +2073,9 @@ function Workouts({ profile, onLogged, onWarmup }: { profile: UserProfile; onLog
 
   return (
     <>
-      <PageHeader eyebrow="Train with intent" title="Your workouts" description="Coach-built sessions that adapt to your current grade and goals." />
+      <PageHeader eyebrow="Train with intent" title="Sessions" description="Coach-built sessions that adapt to your current grade and goals." />
       <details className="programming-guide">
-        <summary><span><Icon name="calendar" size={18} /> Programming guidelines</span><small>Build a balanced, sustainable week</small></summary>
+        <summary><span><Icon name="calendar" size={18} /> Plan your week</span><span className="programming-guide-meta"><small>Build a balanced, sustainable week</small><Icon name="chevron" size={17} /></span></summary>
         <div>
           <p><strong>Balance:</strong> Pair 2–3 climbing sessions with no more than 2 strength sessions each week.</p>
           <p><strong>Recover:</strong> Keep at least one full rest day and avoid hard finger training on consecutive days.</p>
@@ -2019,20 +2085,13 @@ function Workouts({ profile, onLogged, onWarmup }: { profile: UserProfile; onLog
       </details>
       <section className="workout-library">
         <article className="featured-workout">
-          <div><span className="tag">Recommended for you</span><Heading>{recommendedSession.title}</Heading><p>{recommendedSession.description}</p><div className="metadata"><span><Icon name="clock" size={17} />{profile.sessionLength || "45–60 min"}</span><span><Icon name="target" size={17} />{profile.goals?.[0] || "Balanced training"}</span><span>Font {grade}</span></div></div>
+          <div><span className="tag tag-ai">Recommended</span><Heading>Precision &amp; movement</Heading><p>Build better feet, body awareness, and efficient movement before high-quality attempts.</p><div className="metadata"><span><Icon name="clock" size={17} />55 min</span><span><Icon name="footprints" size={17} />Technique</span><span><Icon name="mountain" size={17} />Font grades · {grade || "Not set"}</span></div></div>
           <Button onClick={() => setActivePlan(recommendedPlan)}><Icon name="play" size={17} /> Start session</Button>
         </article>
         <div className="workout-options">
           <article className="option-card"><div className="plan-icon"><Icon name="workout" /></div><Heading level={3}>Strength exercises</Heading><p>Climber-focused pulls, pushes, hinges, and core work to build transferable strength.</p><span><Icon name="clock" size={16} />45–60 min</span><Button variant="secondary" onClick={() => setSubView("strength")}>View exercises <Icon name="arrow" size={17} /></Button></article>
-          <article className="option-card"><div className="plan-icon"><Icon name="target" /></div><Heading level={3}>Endurance training</Heading><p>ARC, 4×4s, and interval sessions to manage pump and build climbing-specific fitness.</p><span><Icon name="clock" size={16} />20–45 min</span><Button variant="secondary" onClick={() => setSubView("endurance")}>View workouts <Icon name="arrow" size={17} /></Button></article>
+          <article className="option-card"><div className="plan-icon"><Icon name="stopwatch" /></div><Heading level={3}>Endurance training</Heading><p>ARC, 4×4s, and interval sessions to manage pump and build climbing-specific fitness.</p><span><Icon name="clock" size={16} />20–45 min</span><Button variant="secondary" onClick={() => setSubView("endurance")}>View workouts <Icon name="arrow" size={17} /></Button></article>
           <article className="option-card"><div className="plan-icon"><Icon name="workout" /></div><Heading level={3}>Project session</Heading><p>A structured approach to your project with full recovery between quality attempts.</p><span><Icon name="clock" size={16} />70 min · 3–5 min rest</span><Button variant="secondary" onClick={() => setActivePlan(projectPlan)}><Icon name="play" size={16} /> Start workout</Button></article>
-          <article className="option-card option-card-warmup">
-            <div className="plan-icon"><Icon name="warmup" /></div>
-            <Heading level={3}>Warm-ups</Heading>
-            <p>Targeted routines for every body area — fingers, wrists, shoulders, hips, and more.</p>
-            <span><Icon name="clock" size={16} />5 – 10 min</span>
-            <Button variant="secondary" onClick={onWarmup}>View warm-ups <Icon name="arrow" size={17} /></Button>
-          </article>
         </div>
       </section>
     </>
@@ -2141,6 +2200,7 @@ export default function App() {
   const [latestAnalysis, setLatestAnalysis] = useState<AnalysisReport | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [aiSharing, setAiSharing] = useState(() => localStorage.getItem("bouldy-ai-sharing") === "true");
+  const [coachConsentAcknowledged, setCoachConsentAcknowledged] = useState(() => localStorage.getItem("bouldy-coach-consent-seen") === "true");
   const [shareInjuries, setShareInjuries] = useState(() => localStorage.getItem("bouldy-share-injuries") === "true");
   const [dataPolicyReturnView, setDataPolicyReturnView] = useState<AppView>("privacy");
 
@@ -2162,6 +2222,16 @@ export default function App() {
     if (!enabled) updateInjurySharing(false);
   }
 
+  function acknowledgeCoachConsent(enabled: boolean) {
+    if (!enabled) {
+      updateAiSharing(false);
+      return;
+    }
+    localStorage.setItem("bouldy-coach-consent-seen", "true");
+    setCoachConsentAcknowledged(true);
+    updateAiSharing(true);
+  }
+
   function updateInjurySharing(enabled: boolean) {
     localStorage.setItem("bouldy-share-injuries", String(enabled));
     setShareInjuries(enabled);
@@ -2170,11 +2240,13 @@ export default function App() {
   function deleteProfileData() {
     localStorage.removeItem("bouldy-profile");
     localStorage.removeItem("bouldy-ai-sharing");
+    localStorage.removeItem("bouldy-coach-consent-seen");
     localStorage.removeItem("bouldy-share-injuries");
     localStorage.removeItem("bouldy-saved-coach-messages");
     setProfile(null);
     setLogs([]);
     setLatestAnalysis(null);
+    setCoachConsentAcknowledged(false);
     setView("today");
   }
 
@@ -2191,36 +2263,27 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Nav view={view} onChange={setView} />
+      <Nav view={view} onChange={setView} name={profile.name} />
       <main className="main-content">
-        <div className="app-topbar">
-          <Button
-            variant="secondary"
-            className={`top-profile-button${view === "profile" ? " active" : ""}`}
-            onClick={() => setView("profile")}
-            aria-label={`Open ${profile.name ? `${profile.name}'s` : "your"} profile`}
-          >
-            <Icon name="user" size={19} />
-          </Button>
-        </div>
-        {view === "today" && <Today profile={profile} onChange={setView} />}
+        {view === "today" && <Today profile={profile} logs={logs} onChange={setView} />}
         <div className={view === "coach" ? "" : "inactive-view"} aria-hidden={view !== "coach"}>
           <Coach
             grade={profile.grade}
             profile={profile}
             analysis={latestAnalysis}
             aiSharing={aiSharing}
+            consentAcknowledged={coachConsentAcknowledged}
             shareInjuries={shareInjuries}
             onAnalyze={() => setView("analyze")}
             onOpenPrivacy={() => setView("privacy")}
             onOpenDataPolicy={() => openDataPolicy("coach")}
-            onSharingChange={updateAiSharing}
+            onSharingChange={acknowledgeCoachConsent}
           />
         </div>
         <div className={view === "analyze" ? "" : "inactive-view"} aria-hidden={view !== "analyze"}>
           <Analyze active={view === "analyze"} onAnalyzed={setLatestAnalysis} />
         </div>
-        {view === "workout" && <Workouts profile={profile} onLogged={(log) => { setLogs((current) => [log, ...current]); setView("history"); }} onWarmup={() => setView("warmup")} />}
+        {view === "workout" && <Workouts profile={profile} onLogged={(log) => { setLogs((current) => [log, ...current]); setView("history"); }} />}
         {view === "warmup" && <Warmup onBack={() => setView("workout")} />}
         {view === "history" && <History logs={logs} />}
         {view === "profile" && <Profile profile={profile} onEdit={() => setEditingProfile(true)} onOpenPrivacy={() => setView("privacy")} />}
