@@ -1355,10 +1355,10 @@ function Coach({
             </div>
           ))}
           {loading && <div className="message coach"><div className="message-avatar"><Icon name="spark" size={15} /></div><div className="message-bubble"><p>Thinking through that…</p></div></div>}
+          {messages.length === 1 && <div className="suggestions" aria-label="Suggested prompts"><div className="suggestion-scroll">{suggestions.map((suggestion) => <Button key={suggestion} variant="secondary" disabled={loading} onClick={() => submit(suggestion)}>{suggestion}</Button>)}</div></div>}
         </div>
         {error && <p className="chat-request-error" role="alert">{error}</p>}
         {savedMessagesError && !showSaved && <p className="saved-messages-error" role="alert">{savedMessagesError}</p>}
-        {messages.length < 3 && <div className="suggestions"><div className="suggestion-scroll">{suggestions.map((suggestion) => <Button key={suggestion} variant="secondary" disabled={loading} onClick={() => submit(suggestion)}>{suggestion}</Button>)}</div></div>}
         <form className="composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
           <div className="composer-input">
             <textarea aria-label="Ask the climbing coach" maxLength={2000} value={input} disabled={loading || !aiSharing} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about training, technique, or a route..." />
@@ -2160,7 +2160,7 @@ function Warmup({ onBack }: { onBack: () => void }) {
   );
 }
 
-function History({ logs }: { logs: WorkoutLog[] }) {
+function History({ logs, profile, profileUpdated, onEditProfile }: { logs: WorkoutLog[]; profile: UserProfile; profileUpdated: boolean; onEditProfile: () => void }) {
   const totalPlannedMinutes = logs.reduce((total, log) => {
     const minutes = Number(log.duration.match(/\d+/)?.[0] ?? 0);
     return total + minutes;
@@ -2173,6 +2173,18 @@ function History({ logs }: { logs: WorkoutLog[] }) {
   return (
     <>
       <PageHeader eyebrow="Your progress" title="Workout history" description="Workouts you complete in Bouldy will show up here." />
+      <section className="history-profile-section">
+        <div className="section-heading"><Heading level={2}>Your profile</Heading></div>
+        {profileUpdated && <p className="history-profile-updated" role="status">Profile updated</p>}
+        <div className="history-profile-card">
+          <div className="history-profile-card-heading"><div><span>Your profile</span><strong>{profile.name || "Climber"}</strong></div><Button variant="secondary" onClick={onEditProfile}>Edit profile</Button></div>
+          <dl>
+            <div><dt>Current Font grade</dt><dd>{profile.grade || "Not added"}</dd></div>
+            <div><dt>Goals</dt><dd>{profile.goals.length ? profile.goals.join(", ") : "Not added"}</dd></div>
+            <div><dt>Weekly training days</dt><dd>{profile.trainingDays?.length ? profile.trainingDays.join(", ") : "Not added"}</dd></div>
+          </dl>
+        </div>
+      </section>
       <section className="history-summary">
         <div><span>Completed workouts</span><strong>{logs.length}</strong><small>Total</small></div>
         <div><span>Planned session time</span><strong>{totalTime}</strong><small>From completed plans</small></div>
@@ -2208,6 +2220,8 @@ export default function App() {
   const [logs, setLogs] = useState<WorkoutLog[]>([]);
   const [latestAnalysis, setLatestAnalysis] = useState<AnalysisReport | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [profileEditReturnView, setProfileEditReturnView] = useState<AppView>("profile");
+  const [profileUpdated, setProfileUpdated] = useState(false);
   const [aiSharing, setAiSharing] = useState(() => localStorage.getItem("bouldy-ai-sharing") === "true");
   const [coachConsentAcknowledged, setCoachConsentAcknowledged] = useState(() => localStorage.getItem("bouldy-coach-consent-seen") === "true");
   const [shareInjuries, setShareInjuries] = useState(() => localStorage.getItem("bouldy-share-injuries") === "true");
@@ -2221,8 +2235,15 @@ export default function App() {
   function complete(p: UserProfile) {
     localStorage.setItem("bouldy-profile", JSON.stringify(p));
     setProfile(p);
+    setProfileUpdated(editingProfile && profileEditReturnView === "history");
     setEditingProfile(false);
-    setView("today");
+    setView(editingProfile ? profileEditReturnView : "today");
+  }
+
+  function editProfile(returnView: AppView) {
+    setProfileEditReturnView(returnView);
+    setProfileUpdated(false);
+    setEditingProfile(true);
   }
 
   function updateAiSharing(enabled: boolean) {
@@ -2255,6 +2276,7 @@ export default function App() {
     setProfile(null);
     setLogs([]);
     setLatestAnalysis(null);
+    setProfileUpdated(false);
     setCoachConsentAcknowledged(false);
     setView("today");
   }
@@ -2294,8 +2316,8 @@ export default function App() {
         </div>
         {view === "workout" && <Workouts profile={profile} onLogged={(log) => { setLogs((current) => [log, ...current]); setView("history"); }} onWarmup={() => setView("warmup")} />}
         {view === "warmup" && <Warmup onBack={() => setView("workout")} />}
-        {view === "history" && <History logs={logs} />}
-        {view === "profile" && <Profile profile={profile} onEdit={() => setEditingProfile(true)} onOpenPrivacy={() => setView("privacy")} />}
+        {view === "history" && <History logs={logs} profile={profile} profileUpdated={profileUpdated} onEditProfile={() => editProfile("history")} />}
+        {view === "profile" && <Profile profile={profile} onEdit={() => editProfile("profile")} onOpenPrivacy={() => setView("privacy")} />}
         {view === "privacy" && (
           <PrivacySettings
             profile={profile}
