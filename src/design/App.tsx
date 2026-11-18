@@ -918,7 +918,7 @@ function getRecommendedSession(profile: UserProfile) {
       ? `A technique-focused session for ${goals.filter((goal) => ["Better static movement", "Better dynamic movement", "Improve technique"].includes(goal)).join(" and ").toLowerCase()}.`
       : goals.length
         ? `A balanced session shaped around your goal: ${goals[0].toLowerCase()}.`
-        : "A balanced session to build efficient movement and confidence on the wall.",
+        : "a balanced beginner session builds confidence and movement quality.",
     steps: [
       ["Progressive warm-up", "Raise your pulse, mobilize shoulders and hips, then climb three easy problems.", 10, 30],
       ["Silent feet", "Climb easy problems without foot noise. Watch each foothold until your toe lands.", 15, 180],
@@ -950,6 +950,14 @@ function Today({ profile, logs, onChange }: { profile: UserProfile; logs: Workou
   const weeklyTarget = Number.parseInt(profile.sessionsPerWeek || "", 10) || 0;
   const sessionsRemaining = Math.max(weeklyTarget - thisWeekLogs.length, 0);
   const duration = `${sessionMinutes(profile.sessionLength)} min`;
+  const displaySteps = session.title === "Project session" && profile.goals.length === 0
+    ? [
+        { title: "Progressive warm-up", minutes: 8 },
+        { title: "Easy volume", minutes: 15 },
+        { title: "Project focus", minutes: 15 },
+        { title: "Cool-down", minutes: 5 },
+      ]
+    : session.steps.map(([title, , minutes]) => ({ title, minutes }));
   const guestMessages = [
     "Every send starts with showing up.",
     "Small sessions add up.",
@@ -984,8 +992,8 @@ function Today({ profile, logs, onChange }: { profile: UserProfile; logs: Workou
           <p className="recommended-reason">Why: {session.description}</p>
           {isGuest && <small className="today-session-note">Create a profile to make this session personal.</small>}
           <ol className="workout-steps">
-            {session.steps.map(([title, instructions, minutes], index) => (
-              <li key={title}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{title}</strong><small>{instructions} · {minutes} min</small></div></li>
+            {displaySteps.map(({ title, minutes }, index) => (
+              <li key={title}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{title}</strong><small>{minutes} min</small></div></li>
             ))}
           </ol>
           <Button className="wide-button" onClick={() => onChange("workout")}><Icon name="play" size={18} /> Start workout</Button>
@@ -1087,7 +1095,7 @@ function PrivacySettings({
       <PageHeader eyebrow="Settings" title="Privacy" description="Manage how Bouldy uses your information." />
       <section className="privacy-card">
         <div className="privacy-setting-row">
-          <div><Heading level={2}>AI coach data sharing</Heading><p>Allow your messages, selected profile details, and latest analysis report to be processed by Google AI Studio Gemini to generate coaching.</p></div>
+          <div><Heading level={2}>AI coach data sharing</Heading><p>Allow your chat messages and some profile answers to be sent to Google's Gemini AI so the coach can answer you.</p></div>
           <label className="privacy-toggle">
             <input type="checkbox" checked={aiSharing} onChange={(event) => onToggleSharing(event.target.checked)} />
             <span aria-hidden />
@@ -1095,7 +1103,7 @@ function PrivacySettings({
           </label>
         </div>
         <div className={`privacy-setting-row${!aiSharing ? " disabled" : ""}`}>
-          <div><Heading level={2}>Share injuries with the AI coach</Heading><p>Lets the coach consider your current injury note. It is not sent unless both sharing settings are turned on.</p></div>
+          <div><Heading level={2}>Share injuries with the AI coach</Heading><p>Sharing injuries lets the coach adapt its advice and Today's session to the injury saved in your profile. That saved injury is sent to Google's Gemini AI only when injury sharing is on. Chat messages are sent to Google's Gemini AI whenever AI coach data sharing is enabled, regardless of the injury-sharing setting, including injury details you type in chat.</p></div>
           <label className="privacy-toggle">
             <input type="checkbox" checked={shareInjuries} disabled={!aiSharing} onChange={(event) => onToggleInjurySharing(event.target.checked)} />
             <span aria-hidden />
@@ -2030,7 +2038,7 @@ function EnduranceView({ onBack, onStart }: { onBack: () => void; onStart: (plan
   );
 }
 
-function Workouts({ profile, onLogged }: { profile: UserProfile; onLogged: (log: WorkoutLog) => void }) {
+function Workouts({ profile, onLogged, onWarmup }: { profile: UserProfile; onLogged: (log: WorkoutLog) => void; onWarmup: () => void }) {
   const [subView, setSubView] = useState<"strength" | "endurance" | null>(null);
   const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null);
   const grade = profile.grade || "your current level";
@@ -2092,6 +2100,7 @@ function Workouts({ profile, onLogged }: { profile: UserProfile; onLogged: (log:
           <article className="option-card"><div className="plan-icon"><Icon name="workout" /></div><Heading level={3}>Strength exercises</Heading><p>Climber-focused pulls, pushes, hinges, and core work to build transferable strength.</p><span><Icon name="clock" size={16} />45–60 min</span><Button variant="secondary" onClick={() => setSubView("strength")}>View exercises <Icon name="arrow" size={17} /></Button></article>
           <article className="option-card"><div className="plan-icon"><Icon name="stopwatch" /></div><Heading level={3}>Endurance training</Heading><p>ARC, 4×4s, and interval sessions to manage pump and build climbing-specific fitness.</p><span><Icon name="clock" size={16} />20–45 min</span><Button variant="secondary" onClick={() => setSubView("endurance")}>View workouts <Icon name="arrow" size={17} /></Button></article>
           <article className="option-card"><div className="plan-icon"><Icon name="workout" /></div><Heading level={3}>Project session</Heading><p>A structured approach to your project with full recovery between quality attempts.</p><span><Icon name="clock" size={16} />70 min · 3–5 min rest</span><Button variant="secondary" onClick={() => setActivePlan(projectPlan)}><Icon name="play" size={16} /> Start workout</Button></article>
+          <article className="option-card option-card-warmup"><div className="plan-icon"><Icon name="warmup" /></div><Heading level={3}>Warm-ups</Heading><p>Targeted routines for fingers, wrists, shoulders, hips, and more.</p><span><Icon name="clock" size={16} />5–10 min</span><Button variant="secondary" onClick={onWarmup}>View warm-ups <Icon name="arrow" size={17} /></Button></article>
         </div>
       </section>
     </>
@@ -2283,7 +2292,7 @@ export default function App() {
         <div className={view === "analyze" ? "" : "inactive-view"} aria-hidden={view !== "analyze"}>
           <Analyze active={view === "analyze"} onAnalyzed={setLatestAnalysis} />
         </div>
-        {view === "workout" && <Workouts profile={profile} onLogged={(log) => { setLogs((current) => [log, ...current]); setView("history"); }} />}
+        {view === "workout" && <Workouts profile={profile} onLogged={(log) => { setLogs((current) => [log, ...current]); setView("history"); }} onWarmup={() => setView("warmup")} />}
         {view === "warmup" && <Warmup onBack={() => setView("workout")} />}
         {view === "history" && <History logs={logs} />}
         {view === "profile" && <Profile profile={profile} onEdit={() => setEditingProfile(true)} onOpenPrivacy={() => setView("privacy")} />}
