@@ -15,6 +15,7 @@ type IconName =
   | "home"
   | "image"
   | "message"
+  | "microphone"
   | "mountain"
   | "play"
   | "plus"
@@ -37,6 +38,26 @@ type WorkoutLog = {
 
 type ChatMessage = { role: "coach" | "user"; text: string };
 type SavedChatMessage = ChatMessage & { id: string };
+type SpeechRecognitionResult = { length: number; [index: number]: { transcript: string } };
+type SpeechRecognitionEvent = { resultIndex: number; results: ArrayLike<SpeechRecognitionResult> };
+type SpeechRecognitionErrorEvent = { error: string };
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  }
+}
 type AnalysisReport = {
   headline: string;
   overallScore: number;
@@ -317,6 +338,7 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
     home: <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>,
     image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m21 15-5-5L5 20" /></>,
     message: <><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" /><path d="M8 9h8M8 13h5" /></>,
+    microphone: <><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" /></>,
     mountain: <><path d="M3 20 10 7l4 7 2-3 5 9H3Z" /><path d="m8 11 2 2 2-2" /></>,
     play: <path d="m8 5 11 7-11 7Z" />,
     plus: <><path d="M12 5v14M5 12h14" /></>,
@@ -1209,12 +1231,17 @@ function Coach({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const speechBaseTextRef = useRef("");
   const [showSaved, setShowSaved] = useState(false);
   const [savedState, setSavedState] = useState(loadSavedChatMessages);
   const [savedMessagesError, setSavedMessagesError] = useState(savedState.error);
   const savedMessagesChanged = useRef(false);
   const suggestions = ["Build my next workout", "Help with a project", "Review my training week"];
   const savedMessages = savedState.messages;
+
+  useEffect(() => () => speechRecognitionRef.current?.stop(), []);
 
   useEffect(() => {
     if (!savedMessagesChanged.current) return;
@@ -1247,6 +1274,8 @@ function Coach({
     const message = text.trim();
     if (!message || loading || !aiSharing) return;
 
+    speechRecognitionRef.current?.stop();
+    setIsListening(false);
     setLoading(true);
     setError("");
     try {
@@ -1309,6 +1338,46 @@ function Coach({
     }
   }
 
+  function toggleVoiceInput() {
+    if (isListening) {
+      speechRecognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      setError("Voice input isn't supported by this browser. You can type your message instead.");
+      return;
+    }
+
+    setError("");
+    speechBaseTextRef.current = input.trim();
+    const recognition = new Recognition();
+    recognition.lang = navigator.language || "en-US";
+    recognition.interimResults = true;
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results, (result) => result[0].transcript).join("").trim();
+      setInput([speechBaseTextRef.current, transcript].filter(Boolean).join(" "));
+    };
+    recognition.onerror = (event) => {
+      setIsListening(false);
+      if (event.error !== "aborted") {
+        setError("Voice input stopped. Please try again or type your message.");
+      }
+    };
+    recognition.onend = () => setIsListening(false);
+    speechRecognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+      setIsListening(true);
+    } catch {
+      speechRecognitionRef.current = null;
+      setError("Could not start voice input. Please try again or type your message.");
+    }
+  }
+
   return (
     <div className="coach-page">
       <section className="chat-card coach-chat-card">
@@ -1361,7 +1430,9 @@ function Coach({
         {savedMessagesError && !showSaved && <p className="saved-messages-error" role="alert">{savedMessagesError}</p>}
         <form className="composer" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
           <div className="composer-input">
+            <Button variant="icon" onClick={onAnalyze} disabled={!aiSharing || !consentAcknowledged} aria-label="Analyze a climbing video" title="Analyze a climbing video"><Icon name="plus" /></Button>
             <textarea aria-label="Ask the climbing coach" maxLength={2000} value={input} disabled={loading || !aiSharing} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder="Ask about training, technique, or a route..." />
+            <Button variant="icon" className={`voice-button${isListening ? " active" : ""}`} onClick={toggleVoiceInput} disabled={loading || !aiSharing || !consentAcknowledged} aria-label={isListening ? "Stop voice input" : "Start voice input"} aria-pressed={isListening} title={isListening ? "Stop voice input" : "Start voice input"}><Icon name="microphone" size={18} /></Button>
             <Button variant="icon" className="send-button" type="submit" disabled={loading || !aiSharing || !input.trim()} aria-label="Send message"><Icon name="send" size={18} /></Button>
           </div>
         </form>
